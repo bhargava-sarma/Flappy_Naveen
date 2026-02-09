@@ -22,23 +22,30 @@ const bgImg = new Image();
 bgImg.src = 'assets/bg.jpg';
 
 // --- SUPABASE CONFIGURATION ---
-// Keys are loaded from config.js (local) or Environment Variables (Vercel)
-// If config.js is missing (production), we use empty strings which will be filled by Vercel env vars if set up that way,
-// but for client-side static sites like this, Vercel Env Vars aren't automatically available in the browser unless prefixed.
-// However, simply undefined check is good.
+// Safely handle Supabase keys without redeclaring globals (avoids SyntaxError with const in config.js)
+let sbUrl = '';
+let sbKey = '';
 
-if (typeof SUPABASE_URL === 'undefined') {
-    console.warn("Supabase keys not found! Leadeboard will be disabled.");
-    var SUPABASE_URL = ''; // Prevent crash
-    var SUPABASE_KEY = '';
+try {
+    // Check if SUPABASE_URL is defined in config.js
+    if (typeof SUPABASE_URL !== 'undefined') {
+        sbUrl = SUPABASE_URL;
+        sbKey = SUPABASE_KEY;
+    }
+} catch (e) {
+    console.warn("Config loading check failed");
 }
 
 // Initialize Client
 let supabase;
 try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    if (sbUrl && sbKey && window.supabase) {
+        supabase = window.supabase.createClient(sbUrl, sbKey);
+    } else {
+        console.warn("Supabase keys missing or client not loaded. Leaderboard disabled.");
+    }
 } catch (e) {
-    console.error("Supabase failed to init. Check if script tag is in HTML.", e);
+    console.error("Supabase failed to init:", e);
 }
 
 // Global Leaderboard Functions
@@ -49,12 +56,12 @@ async function fetchLeaderboard() {
     list.innerHTML = '<li>Loading...</li>';
 
     if (!supabase) {
-        list.innerHTML = '<li>Leaderboard unavailable</li>';
+        list.innerHTML = '<li>Offine Mode (Leaderboard Hidden)</li>';
         return;
     }
 
-    if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-        list.innerHTML = '<li>Setup Supabase keys in script.js</li>';
+    if (sbUrl.includes('YOUR_SUPABASE_URL')) {
+        list.innerHTML = '<li>Setup Supabase keys</li>';
         return;
     }
 
@@ -79,7 +86,7 @@ async function fetchLeaderboard() {
 }
 
 async function saveToLeaderboard(name, newScore) {
-    if (!supabase || SUPABASE_URL === 'YOUR_SUPABASE_URL') return;
+    if (!supabase || sbUrl.includes('YOUR_SUPABASE_URL')) return;
 
     try {
         // Send to Supabase
