@@ -1,5 +1,39 @@
+// debug helper
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    alert('Error: ' + msg + '\nLine: ' + lineNo);
+    return false;
+};
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// Assets - Define loading first
+const birdImg = new Image();
+birdImg.onload = function() {
+    // Keep width 80, adjust height to aspect ratio
+    if (birdImg.width > 0) {
+        const aspect = birdImg.height / birdImg.width;
+        bird.h = bird.w * aspect;
+    }
+};
+
+const bgImg = new Image();
+bgImg.onload = function() {
+    // Only draw if not playing yet
+    if (currentState === 'START') {
+        let imgW = bgImg.width;
+        let imgH = bgImg.height;
+        if (imgH > 0) {
+            let ratio = canvas.height / imgH;
+            let scaledW = imgW * ratio;
+            ctx.drawImage(bgImg, 0, 0, scaledW, canvas.height);
+        }
+    }
+};
+
+// Set sources AFTER onload to ensure they fire
+birdImg.src = 'assets/main.png';
+bgImg.src = 'assets/bg.jpg';
 
 // UI Elements
 const uiLayer = document.getElementById('ui-layer');
@@ -15,11 +49,6 @@ const startBtn = document.getElementById('start-btn');
 const restartBtn = document.getElementById('restart-btn');
 const bgMusic = document.getElementById('bg-music');
 
-// Assets
-const birdImg = new Image();
-birdImg.src = 'assets/main.png';
-const bgImg = new Image();
-bgImg.src = 'assets/bg.jpg';
 
 // --- SUPABASE CONFIGURATION ---
 // Check window object for keys (populated by config.js)
@@ -355,6 +384,7 @@ function loop() {
 
 // Controls
 function startGame() {
+    console.log("Start Game Clicked");
     const name = nameInput.value.trim();
     if (!name) {
         alert("Please enter a name!");
@@ -373,7 +403,7 @@ function startGame() {
     
     // Play Audio
     bgMusic.currentTime = 0;
-    bgMusic.play().catch(e => console.log("Audio play failed", e));
+    bgMusic.play().catch(e => console.log("Audio play failed, user interaction needed first?", e));
     
     loop();
 }
@@ -438,14 +468,8 @@ canvas.addEventListener('touchstart', (e) => {
 
 
 // Event Listeners
-startBtn.addEventListener('click', startGame);
-restartBtn.addEventListener('click', startGame);
+if(startBtn) startBtn.addEventListener('click', startGame);
+if(restartBtn) restartBtn.addEventListener('click', startGame);
 
-// Preload Bird Aspect Ratio
-birdImg.onload = function() {
-    // Keep width 40, adjust height to aspect ratio
-    const aspect = birdImg.height / birdImg.width;
-    bird.h = bird.w * aspect;
-    
-    // Initial draw for background (if needed)
-};
+// Clean up: Remove the old onload handlers at the bottom since we moved them up
+// (This is just a comment now, the replace logic removed the old ones effectively by replacing the top block where they usually sat or I will check next)
