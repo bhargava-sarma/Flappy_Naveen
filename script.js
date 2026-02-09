@@ -48,39 +48,53 @@ async function fetchLeaderboard() {
 
     list.innerHTML = '<li>Loading...</li>';
 
+    if (!supabase) {
+        list.innerHTML = '<li>Leaderboard unavailable</li>';
+        return;
+    }
+
     if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
         list.innerHTML = '<li>Setup Supabase keys in script.js</li>';
         return;
     }
 
-    const { data, error } = await supabase
-        .from('leaderboard')
-        .select('name, score')
-        .order('score', { ascending: false })
-        .limit(5);
+    try {
+        const { data, error } = await supabase
+            .from('leaderboard')
+            .select('name, score')
+            .order('score', { ascending: false })
+            .limit(5);
 
-    if (error) {
-        console.error('Error fetching leaderboard:', error);
-        list.innerHTML = '<li>Error loading scores</li>';
-        return;
+        if (error) {
+            console.error('Error fetching leaderboard:', error);
+            list.innerHTML = '<li>Error loading scores</li>';
+            return;
+        }
+
+        renderLeaderboard(data);
+    } catch (err) {
+        console.warn("Leaderboard fetch failed:", err);
+        list.innerHTML = '<li>Connection Error</li>';
     }
-
-    renderLeaderboard(data);
 }
 
 async function saveToLeaderboard(name, newScore) {
-    if (SUPABASE_URL === 'YOUR_SUPABASE_URL') return;
+    if (!supabase || SUPABASE_URL === 'YOUR_SUPABASE_URL') return;
 
-    // Send to Supabase
-    const { error } = await supabase
-        .from('leaderboard')
-        .insert([{ name: name, score: newScore }]);
+    try {
+        // Send to Supabase
+        const { error } = await supabase
+            .from('leaderboard')
+            .insert([{ name: name, score: newScore }]);
 
-    if (error) {
-        console.error('Error saving score:', error);
-    } else {
-        // Refresh display
-        fetchLeaderboard();
+        if (error) {
+            console.error('Error saving score:', error);
+        } else {
+            // Refresh display
+            fetchLeaderboard();
+        }
+    } catch (err) {
+        console.warn("Leaderboard save failed:", err);
     }
 }
 
