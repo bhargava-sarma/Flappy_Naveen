@@ -22,18 +22,18 @@ const bgImg = new Image();
 bgImg.src = 'assets/bg.jpg';
 
 // --- SUPABASE CONFIGURATION ---
-// Safely handle Supabase keys without redeclaring globals (avoids SyntaxError with const in config.js)
-let sbUrl = '';
-let sbKey = '';
+// Check window object for keys (populated by config.js)
+let sbUrl = window.SUPABASE_URL || '';
+let sbKey = window.SUPABASE_KEY || '';
 
-try {
-    // Check if SUPABASE_URL is defined in config.js
-    if (typeof SUPABASE_URL !== 'undefined') {
-        sbUrl = SUPABASE_URL;
-        sbKey = SUPABASE_KEY;
-    }
-} catch (e) {
-    console.warn("Config loading check failed");
+// Try legacy check (if config.js uses const instead of window)
+if (!sbUrl) {
+    try {
+        if (typeof SUPABASE_URL !== 'undefined') {
+            sbUrl = SUPABASE_URL;
+            sbKey = SUPABASE_KEY;
+        }
+    } catch(e) { /* ignore */ }
 }
 
 // Initialize Client
@@ -41,6 +41,7 @@ let supabase;
 try {
     if (sbUrl && sbKey && window.supabase) {
         supabase = window.supabase.createClient(sbUrl, sbKey);
+        console.log("Supabase initialized");
     } else {
         console.warn("Supabase keys missing or client not loaded. Leaderboard disabled.");
     }
