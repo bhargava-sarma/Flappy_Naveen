@@ -1,0 +1,131 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Let clicks pass through to canvas when playing */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Enable pointer events for interactive elements */
+#start-screen, #game-over-screen {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 2rem;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    width: 80%;
+}
+
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+#score-display {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px #000;
+    background-color: rgba(255, 255, 255, 0.5);
+    padding: 10px 20px;
+    border-radius: 20px;
+}
+
+#high-score-display {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffd700; /* Gold */
+    text-shadow: 2px 2px 4px #000;
+    background-color: rgba(255, 255, 255, 0.5);
+    padding: 10px 20px;
+    border-radius: 20px;
+}
+
+/* Inputs and Buttons */
+input {
+    padding: 10px;
+    font-size: 1rem;
+    margin: 10px 0;
+    width: 100%;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 1.2rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+/* Game Over specific */
+#game-over-img {
+    width: 50%;
+    max-width: none;
+    height: auto;
+    margin-bottom: 20px;
+}
+
+h1 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+h2 {
+    color: #e74c3c;
+    margin-bottom: 15px;
+}

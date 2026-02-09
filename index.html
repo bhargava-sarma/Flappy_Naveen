@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Naveen</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- UI Overlay -->
+        <div id="ui-layer">
+            <div id="hud" class="hidden">
+                <div id="high-score-display">Best: 0</div>
+                <div id="score-display">Score: 0</div>
+            </div>
+
+            <div id="start-screen">
+                <h1>Flappy Naveen</h1>
+                <p>Enter your name to play</p>
+                <input type="text" id="player-name" placeholder="Your Name" maxlength="15">
+                <button id="start-btn">Start Game</button>
+            </div>
+
+            <div id="game-over-screen" class="hidden">
+                <img src="assets/finished.png" alt="Finished" id="game-over-img">
+                <h2>You let Naveen down</h2>
+                <p>Score: <span id="final-score">0</span></p>
+                <p>Best: <span id="best-score">0</span></p>
+                <button id="restart-btn">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bg-music" loop>
+        <source src="assets/udta.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Config (Local only) -->
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

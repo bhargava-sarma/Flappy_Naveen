@@ -1,0 +1,2 @@
+# Ignore the config file so keys aren't pushed to GitHub
+config.js
