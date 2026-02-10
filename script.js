@@ -1,165 +1,68 @@
-console.log("Script loaded - v.Reboot");
-
-// 1. SETUP CANVAS & VARS
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-// UI Elements
-const uiLayer = document.getElementById('ui-layer');
-const startScreen = document.getElementById('start-screen');
-const hud = document.getElementById('hud');
-const gameOverScreen = document.getElementById('game-over-screen');
-const scoreDisplay = document.getElementById('score-display');
-const highScoreDisplay = document.getElementById('high-score-display');
-const finalScoreSpan = document.getElementById('final-score');
-const bestScoreSpan = document.getElementById('best-score');
-const nameInput = document.getElementById('player-name');
-const startBtn = document.getElementById('start-btn');
-const restartBtn = document.getElementById('restart-btn');
-const bgMusic = document.getElementById('bg-music');
-
-// Assets
-const birdImg = new Image();
-birdImg.onload = () => {
-    if (birdImg.width > 0) {
-        bird.h = bird.w * (birdImg.height / birdImg.width);
-    }
+// 0. GLOBAL ERROR HANDLER (Debugging on Vercel)
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error("Global Error:", message);
+    // Only alert if we are in a "stuck" state to avoid annoying users, 
+    // but for now we want to see why it fails.
+    // user removed alert request, so we log heavily.
 };
-birdImg.src = 'assets/main.png';
 
-const bgImg = new Image();
-bgImg.src = 'assets/bg.jpg';
+console.log("Script initializing v3.0");
 
-// Game State
+// 1. GAME CONFIG & STATE
+const GAME_CONFIG = {
+    gravity: 0.15,
+    jump: 3.2,
+    speed: 3
+};
+
 let currentState = 'START';
 let frames = 0;
 let score = 0;
 let highScore = parseInt(localStorage.getItem('highScore')) || 0;
 let playerName = localStorage.getItem('playerName') || '';
-let gameSpeed = 3;
 
-// Set stored name
-if (playerName && nameInput) nameInput.value = playerName;
+// 2. DOM ELEMENTS (Resolved lazily or immediately if at bottom of body)
+// We use a helper to get elements safely
+const getEl = (id) => document.getElementById(id);
 
-
-// 2. SUPABASE INTEGRATION (ISOLATED)
-// We wrap this in a safe object so if it fails, the game doesn't crash
-const Leaderboard = {
-    client: null,
-    
-    init: function() {
-        try {
-            // 1. Check if Supabase JS library loaded
-            if (!window.supabase) {
-                console.warn("Supabase library not loaded.");
-                return;
-            }
-
-            // 2. Resolve Keys (Window object from config.js OR Vercel Env Vars if injected manually)
-            let url = window.SUPABASE_URL; // From config.js
-            let key = window.SUPABASE_KEY; // From config.js
-            
-            // If missing, check if they were globally defined another way or just missing
-            if (!url || !key) {
-                console.warn("Supabase keys missing. Check config.js or Vercel Settings.");
-                return;
-            }
-
-            // 3. Create Client
-            this.client = window.supabase.createClient(url, key);
-            console.log("Supabase Client initialized successfully.");
-            
-            // Load initial leaderboard
-            this.fetch();
-            
-        } catch (e) {
-            console.error("Supabase init error:", e);
-        }
-    },
-
-    fetch: async function() {
-        const list = document.getElementById('leaderboard-list');
-        if (!list) return;
-        
-        if (!this.client) {
-            list.innerHTML = '<li>Leaderboard Offline</li>';
-            return;
-        }
-
-        try {
-            list.innerHTML = '<li>Loading...</li>';
-            const { data, error } = await this.client
-                .from('leaderboard')
-                .select('name, score')
-                .order('score', { ascending: false })
-                .limit(5);
-
-            if (error) throw error;
-            
-            if (!data || data.length === 0) {
-                list.innerHTML = '<li>No scores yet!</li>';
-            } else {
-                list.innerHTML = data.map(entry => `
-                    <li>
-                        <span>${this.escape(entry.name)}</span>
-                        <span>${entry.score}</span>
-                    </li>
-                `).join('');
-            }
-        } catch(e) {
-            console.error("Fetch error:", e);
-            list.innerHTML = '<li>Error loading scores</li>';
-        }
-    },
-
-    save: async function(name, score) {
-        if (!this.client) return;
-        try {
-            await this.client.from('leaderboard').insert([{ name: name, score: score }]);
-            // Refresh after saving
-            setTimeout(() => this.fetch(), 1000);
-        } catch(e) {
-            console.error("Save error:", e);
-        }
-    },
-    
-    escape: function(str) {
-        // Simple XSS prevention
-        return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
+const ui = {
+    canvas: getEl('gameCanvas'),
+    startScreen: getEl('start-screen'),
+    hud: getEl('hud'),
+    gameOverScreen: getEl('game-over-screen'),
+    score: getEl('score-display'),
+    highScore: getEl('high-score-display'),
+    finalScore: getEl('final-score'),
+    bestScore: getEl('best-score'),
+    nameInput: getEl('player-name'),
+    startBtn: getEl('start-btn'),
+    restartBtn: getEl('restart-btn'),
+    bgMusic: getEl('bg-music')
 };
 
-
-// 3. GAME ENGINE
-function resize() {
-    const container = document.getElementById('game-container');
-    if (container) {
-        canvas.width = container.offsetWidth;
-        canvas.height = container.offsetHeight;
-        // Re-center bird if waiting
-        if (currentState === 'START') {
-            bird.x = canvas.width / 2;
-        }
-    }
+// Check critical elements
+if (!ui.canvas || !ui.startBtn) {
+    console.error("Critical DOM elements missing!");
+    alert("Error: Game UI not loaded correctly. Refresh the page.");
 }
-window.addEventListener('resize', resize);
 
+const ctx = ui.canvas.getContext('2d');
+
+// 3. OBJECTS (Defined BEFORE usage)
 const bird = {
-    x: 100, // Placeholder
+    x: 100,
     y: 150,
     w: 80,
     h: 80,
     velocity: 0,
-    gravity: 0.15,
-    jump: 3.2,
     rotation: 0,
     
     draw: function() {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
-        if (birdImg.complete && birdImg.naturalWidth > 0) {
-            ctx.drawImage(birdImg, -this.w/2, -this.h/2, this.w, this.h);
+        if (assets.bird.loaded) {
+            ctx.drawImage(assets.bird.img, -this.w/2, -this.h/2, this.w, this.h);
         } else {
             ctx.fillStyle = "yellow";
             ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
@@ -168,12 +71,12 @@ const bird = {
     },
     
     update: function() {
-        this.velocity += this.gravity;
+        this.velocity += GAME_CONFIG.gravity;
         this.y += this.velocity;
         this.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, this.velocity * 0.1));
 
-        if (this.y + this.h/2 >= canvas.height) { 
-             this.y = canvas.height - this.h/2;
+        if (this.y + this.h/2 >= ui.canvas.height) { 
+             this.y = ui.canvas.height - this.h/2;
              die();
         }
         if (this.y - this.h/2 <= 0) {
@@ -183,7 +86,7 @@ const bird = {
     },
     
     flap: function() {
-        this.velocity = -this.jump;
+        this.velocity = -GAME_CONFIG.jump;
     }
 };
 
@@ -198,17 +101,20 @@ const pipes = {
             let p = this.items[i];
             ctx.fillStyle = "#2ecc71";
             ctx.fillRect(p.x, 0, this.w, p.y);
-            ctx.fillRect(p.x, p.y + p.gap, this.w, canvas.height - (p.y + p.gap));
+            ctx.fillRect(p.x, p.y + p.gap, this.w, ui.canvas.height - (p.y + p.gap));
+            
+            // Border
             ctx.strokeStyle = "#27ae60";
             ctx.lineWidth = 3;
             ctx.strokeRect(p.x, 0, this.w, p.y);
-            ctx.strokeRect(p.x, p.y + p.gap, this.w, canvas.height - (p.y + p.gap));
+            ctx.strokeRect(p.x, p.y + p.gap, this.w, ui.canvas.height - (p.y + p.gap));
         }
     },
     
     update: function() {
         if (frames >= this.nextSpawn) {
-            const minSpacing = 250;
+            // Random generation logic
+             const minSpacing = 250;
             const maxSpacing = 300;
             this.nextSpawn = frames + Math.floor(Math.random() * (maxSpacing - minSpacing + 1)) + minSpacing;
 
@@ -217,27 +123,31 @@ const pipes = {
             const gapSize = Math.floor(Math.random() * (maxGap - minGap + 1)) + minGap;
 
             const minTop = 50;
-            const maxTop = Math.max(minTop, canvas.height - gapSize - 50);
+            const maxTop = Math.max(minTop, ui.canvas.height - gapSize - 50);
             const topHeight = Math.floor(Math.random() * (maxTop - minTop + 1) + minTop);
             
-            this.items.push({ x: canvas.width, y: topHeight, gap: gapSize, passed: false });
+            this.items.push({ x: ui.canvas.width, y: topHeight, gap: gapSize, passed: false });
         }
         
         for (let i = 0; i < this.items.length; i++) {
             let p = this.items[i];
             p.x -= this.dx; 
             
+            // Score Logic
             if (p.x + this.w < bird.x && !p.passed) {
                 score++;
-                scoreDisplay.innerText = "Score: " + score;
+                ui.score.innerText = "Score: " + score;
                 p.passed = true;
             }
             
+            // Collision Logic
             if (bird.x + bird.w/2 > p.x && bird.x - bird.w/2 < p.x + this.w) {
                 if (bird.y - bird.h/2 < p.y || bird.y + bird.h/2 > p.y + p.gap) {
                     die();
                 }
             }
+            
+            // Cleanup
             if (p.x + this.w <= -55) {
                 this.items.shift();
                 i--;
@@ -251,52 +161,146 @@ const pipes = {
 };
 
 const bg = {
-    x: 0,
     draw: function() {
-        if (!bgImg.complete) {
+        if (!assets.bg.loaded) {
             ctx.fillStyle = "#70c5ce";
-            ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.fillRect(0,0,ui.canvas.width, ui.canvas.height);
             return;
         }
-        let ratio = canvas.height / bgImg.height;
-        let scaledW = bgImg.width * ratio;
-        // Static background as requested
-        let tiles = Math.ceil(canvas.width / scaledW) + 1;
-        for(let i=0; i<tiles; i++) ctx.drawImage(bgImg, i*scaledW, 0, scaledW, canvas.height);
-    },
-    update: function() {} 
+        let ratio = ui.canvas.height / assets.bg.img.height;
+        let scaledW = assets.bg.img.width * ratio;
+        let tiles = Math.ceil(ui.canvas.width / scaledW) + 1;
+        for(let i=0; i<tiles; i++) ctx.drawImage(assets.bg.img, i*scaledW, 0, scaledW, ui.canvas.height);
+    }
 };
 
-// 4. CONTROL FUNCTIONS
+// 4. ASSET MANAGEMENT
+const assets = {
+    bird: { img: new Image(), loaded: false },
+    bg: { img: new Image(), loaded: false }
+};
+
+assets.bird.img.onload = () => {
+    assets.bird.loaded = true;
+    if (assets.bird.img.width > 0) {
+        // Adjust aspect ratio if loaded
+        bird.h = bird.w * (assets.bird.img.height / assets.bird.img.width);
+    }
+};
+assets.bird.img.src = 'assets/main.png';
+
+assets.bg.img.onload = () => { assets.bg.loaded = true; };
+assets.bg.img.src = 'assets/bg.jpg';
+
+
+// 5. LEADERBOARD (Fault Tolerant)
+const Leaderboard = {
+    client: null,
+    
+    init: function() {
+        try {
+            if (!window.supabase || (!window.SUPABASE_URL && !window.SUPABASE_KEY)) {
+                // Determine if we are on Vercel and might have keys injected differently?
+                // For now, assume failure if missing.
+                console.log("Supabase not fully configured, leaderboard disabled.");
+                return;
+            }
+            this.client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+            this.fetch();
+        } catch (e) {
+            console.warn("Leaderboard init failed (Non-fatal):", e);
+        }
+    },
+
+    fetch: async function() {
+        // Only run if client exists
+        if (!this.client) {
+             const list = document.getElementById('leaderboard-list');
+             if(list) list.innerHTML = '<li>Leaderboard (Offline)</li>';
+             return;
+        }
+        
+        try {
+            const list = document.getElementById('leaderboard-list');
+            if(!list) return;
+            
+            list.innerHTML = '<li>Loading...</li>';
+            const { data, error } = await this.client
+                .from('leaderboard')
+                .select('name, score')
+                .order('score', { ascending: false })
+                .limit(5);
+
+            if (error) throw error;
+            
+            if (!data || data.length === 0) list.innerHTML = '<li>No scores yet!</li>';
+            else {
+                list.innerHTML = data.map(e => `<li><span>${e.name.replace(/</g, "&lt;")}</span><span>${e.score}</span></li>`).join('');
+            }
+        } catch(e) { console.error("LB Fetch Error:", e); }
+    },
+
+    save: async function(name, score) {
+        if (!this.client) return;
+        try {
+            await this.client.from('leaderboard').insert([{ name: name, score: score }]);
+            setTimeout(() => this.fetch(), 500);
+        } catch(e) { console.error("LB Save Error:", e); }
+    }
+};
+
+
+// 6. CORE LOGIC
+function resize() {
+    const parent = document.getElementById('game-container');
+    if (parent) {
+        ui.canvas.width = parent.offsetWidth;
+        ui.canvas.height = parent.offsetHeight;
+        if (currentState === 'START') {
+            bird.x = ui.canvas.width / 2;
+            bird.y = ui.canvas.height / 2;
+        }
+    }
+}
+
 function startGame() {
-    console.log("Starting game...");
-    const name = nameInput.value.trim();
+    console.log("Start Button Clicked");
+    
+    const name = ui.nameInput.value.trim();
     if (!name) {
         alert("Please enter a name!");
         return;
     }
+    
+    // Save User
     playerName = name;
     localStorage.setItem('playerName', name);
     
-    startScreen.classList.add('hidden');
-    gameOverScreen.classList.add('hidden');
-    hud.classList.remove('hidden');
+    // UI Switch
+    ui.startScreen.classList.add('hidden');
+    ui.gameOverScreen.classList.add('hidden');
+    ui.hud.classList.remove('hidden');
     
-    bird.y = canvas.height / 2;
-    bird.x = canvas.width / 2;
+    // Reset Game Objects
+    bird.y = ui.canvas.height / 2;
     bird.velocity = 0;
-    
     pipes.reset();
     frames = 0;
     score = 0;
-    scoreDisplay.innerText = "Score: 0";
-    highScoreDisplay.innerText = "Best: " + highScore;
+    
+    // Reset Displays
+    ui.score.innerText = "Score: 0";
+    ui.highScore.innerText = "Best: " + highScore;
     
     currentState = 'PLAYING';
     
-    bgMusic.currentTime = 0;
-    bgMusic.play().catch(e => console.log("Audio autplay blocked:", e));
+    // Audio
+    if(ui.bgMusic) {
+        ui.bgMusic.currentTime = 0;
+        ui.bgMusic.play().catch(e => console.log("Audio ignored:", e));
+    }
     
+    // Start Loop
     loop();
 }
 
@@ -304,55 +308,80 @@ function die() {
     if (currentState === 'GAMEOVER') return;
     currentState = 'GAMEOVER';
     
+    console.log("Game Over. Score:", score);
+    
     if (score > highScore) {
         highScore = score;
         localStorage.setItem('highScore', highScore);
     }
     
-    if (score > 0) Leaderboard.save(playerName, score);
+    Leaderboard.save(playerName, score);
     
-    hud.classList.add('hidden');
-    finalScoreSpan.innerText = score;
-    bestScoreSpan.innerText = highScore;
-    gameOverScreen.classList.remove('hidden');
+    ui.hud.classList.add('hidden');
+    ui.finalScore.innerText = score;
+    ui.bestScore.innerText = highScore;
+    ui.gameOverScreen.classList.remove('hidden');
     
-    bgMusic.pause();
+    if(ui.bgMusic) ui.bgMusic.pause();
 }
 
 function loop() {
     if (currentState === 'PLAYING') {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
+        
         bg.draw();
         pipes.update();
         pipes.draw();
         bird.update();
         bird.draw();
+        
         frames++;
         requestAnimationFrame(loop);
     }
 }
 
-// 5. INPUTS
+
+// 7. INPUT HANDLING
 window.addEventListener('keydown', (e) => {
     if ((e.code === 'Space' || e.code === 'ArrowUp') && currentState === 'PLAYING') bird.flap();
 });
-canvas.addEventListener('click', () => { if (currentState === 'PLAYING') bird.flap(); });
-canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (currentState === 'PLAYING') bird.flap(); }, {passive: false});
+ui.canvas.addEventListener('click', () => { if (currentState === 'PLAYING') bird.flap(); });
+ui.canvas.addEventListener('touchstart', (e) => { 
+    if (currentState === 'PLAYING') {
+        e.preventDefault(); 
+        bird.flap(); 
+    }
+}, {passive: false});
 
-startBtn.onclick = startGame; // Direct assignment is often more robust than addEventListener in mixed loading
-restartBtn.onclick = startGame;
 
-// 6. BOOTSTRAP
+// 8. INITIALIZATION
 window.onload = function() {
-    console.log("Window loaded. Initializing...");
+    console.log("Window loaded.");
+    
+    // 1. Resize first
     resize();
+    window.addEventListener('resize', resize);
+    
+    // 2. Setup Buttons (explicitly)
+    if(ui.startBtn) {
+        ui.startBtn.onclick = startGame; 
+        console.log("Start button bound.");
+    } else {
+        console.error("Start button not found in DOM");
+    }
+    
+    if(ui.restartBtn) ui.restartBtn.onclick = startGame;
+    
+    // 3. Pre-fill name
+    if (playerName && ui.nameInput) ui.nameInput.value = playerName;
+
+    // 4. Init Leaderboard
     Leaderboard.init();
     
-    // Initial paint
+    // 5. Initial Draw
     setTimeout(() => {
-        bg.draw(); 
-        // Initial bird pos
-        bird.x = canvas.width / 2;
-        bird.y = canvas.height / 2;
+        bg.draw();
+        bird.x = ui.canvas.width / 2; // Ensure centered
+        bird.draw();
     }, 100);
 };
