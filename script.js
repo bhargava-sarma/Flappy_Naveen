@@ -178,7 +178,6 @@ const Leaderboard = {
             const { error } = await this.client.from('leaderboard').insert([{ name: name, score: score }]); 
             if (error) {
                 console.error("Save failed:", error);
-                alert("Leaderboard Save Failed: " + error.message);
             }
         } 
         catch(e) { console.error("LB Save Error:", e); }
