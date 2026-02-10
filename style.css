@@ -129,3 +129,52 @@ h2 {
     color: #e74c3c;
     margin-bottom: 15px;
 }
+
+/* New Styles for Leaderboard Update */
+
+.secondary-btn {
+    background-color: #3498db;
+    margin-left: 10px;
+}
+.secondary-btn:hover {
+    background-color: #2980b9;
+}
+
+#leaderboard-screen {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2rem;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    width: 80%;
+    max-width: 400px;
+}
+
+#leaderboard-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    text-align: left;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#leaderboard-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 1.1rem;
+}
+
+#leaderboard-list li:nth-child(1) { color: #f1c40f; font-weight: bold; }
+#leaderboard-list li:nth-child(2) { color: #95a5a6; font-weight: bold; }
+#leaderboard-list li:nth-child(3) { color: #e67e22; font-weight: bold; }
+
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}

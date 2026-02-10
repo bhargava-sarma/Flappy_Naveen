@@ -23,6 +23,15 @@
                 <p>Enter your name to play</p>
                 <input type="text" id="player-name" placeholder="Your Name" maxlength="15">
                 <button id="start-btn">Start Game</button>
+                <button id="leaderboard-btn" class="secondary-btn">View Leaderboard</button>
+            </div>
+
+            <div id="leaderboard-screen" class="hidden">
+                <h2>Top Scorers</h2>
+                <ul id="leaderboard-list">
+                    <li>Loading...</li>
+                </ul>
+                <button id="back-btn" class="secondary-btn">Back</button>
             </div>
 
             <div id="game-over-screen" class="hidden">
@@ -30,7 +39,10 @@
                 <h2>You let Naveen down</h2>
                 <p>Score: <span id="final-score">0</span></p>
                 <p>Best: <span id="best-score">0</span></p>
-                <button id="restart-btn">Try Again</button>
+                <div class="button-row">
+                    <button id="restart-btn">Try Again</button>
+                    <button id="end-leaderboard-btn" class="secondary-btn">Leaderboard</button>
+                </div>
             </div>
         </div>
     </div>
