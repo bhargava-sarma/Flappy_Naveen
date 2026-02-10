@@ -174,17 +174,33 @@ const Leaderboard = {
     },
     save: async function(name, score) {
         if (!this.client) return;
-        if (score === 0) return; // Don't spam leaderboard with 0s check
+        if (score <= 0) return; // Ignore 0 or negative scores
         
         try { 
-            // Debug Alert to prove value
-            // console.log(`Saving ${name}: ${score}`);
-            const { error } = await this.client.from('leaderboard').insert([{ name: name, score: score }]); 
+            // ALERT FOR DEBUGGING: To verify score is correct
+            // alert(`Attempting to save: ${name} with score ${score}`);
+            
+            // Using upsert in case 'name' is a primary key/unique
+            // This allows updating an existing user's score if setup that way
+            const { error } = await this.client
+                .from('leaderboard')
+                .upsert([
+                    { name: name, score: score }
+                ], { onConflict: 'name' }); // Assuming 'name' might be unique constraint
+                
             if (error) {
                 console.error("Save failed:", error);
+                alert("Leaderboard Save Error: " + error.message + "\n(Details: " + error.details + ")");
+            } else {
+                // Determine if we need to refresh immediately
+                // alert("Score Saved!");
+                this.fetch();
             }
         } 
-        catch(e) { console.error("LB Save Error:", e); }
+        catch(e) { 
+            console.error("LB Save Exception:", e); 
+            alert("Leaderboard Exception: " + e.message);
+        }
     }
 };
 
