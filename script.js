@@ -173,21 +173,21 @@ const Leaderboard = {
         }
     },
     save: async function(name, score) {
-        if (!this.client) return;
         if (score <= 0) return; 
         
         try { 
-            // SECURE METHOD: Call RPC Function instead of direct Insert
-            // This prevents users from simply editing table rows via Network tab
-            const { error } = await this.client.rpc('submit_score', { 
-                p_name: name, 
-                p_score: score,
-                p_secret: 'BlueBirdFlyHigh' // Must match the SQL function secret
+            // VERCEL API METHOD (Hides secret from browser)
+            const response = await fetch('/api/submit-score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, score: score })
             });
 
-            if (error) {
-                console.error("Save failed:", error);
-                // alert("Score rejected: " + error.message);
+            const result = await response.json();
+
+            if (!response.ok) {
+                console.error("Save failed:", result.error);
+                // alert("Score rejected: " + result.error);
             } else {
                 this.fetch();
             }
