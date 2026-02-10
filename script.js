@@ -174,7 +174,11 @@ const Leaderboard = {
     },
     save: async function(name, score) {
         if (!this.client) return;
+        if (score === 0) return; // Don't spam leaderboard with 0s check
+        
         try { 
+            // Debug Alert to prove value
+            // console.log(`Saving ${name}: ${score}`);
             const { error } = await this.client.from('leaderboard').insert([{ name: name, score: score }]); 
             if (error) {
                 console.error("Save failed:", error);
