@@ -130,14 +130,25 @@ const Leaderboard = {
         try {
             if (!window.supabase || (!window.SUPABASE_URL && !window.SUPABASE_KEY)) {
                 console.log("Supabase not configured.");
+                // Use a visual indicator for debugging
+                const lbList = document.getElementById('leaderboard-list');
+                if(lbList) lbList.innerHTML = '<li style="color:orange">Setup Missing: Check Keys</li>';
                 return;
             }
             this.client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
-        } catch (e) { console.warn("Leaderboard init failed:", e); }
+            console.log("Supabase Connected");
+        } catch (e) { 
+            console.warn("Leaderboard init failed:", e);
+        }
     },
     fetch: async function() {
         if (!ui.lbList) return;
-        if (!this.client) { ui.lbList.innerHTML = '<li>Leaderboard (Offline)</li>'; return; }
+        
+        // Check Client again
+        if (!this.client) { 
+            ui.lbList.innerHTML = '<li style="color:orange">Offline (Check Config)</li>'; 
+            return; 
+        }
         
         try {
             ui.lbList.innerHTML = '<li>Loading...</li>';
@@ -145,20 +156,31 @@ const Leaderboard = {
                 .from('leaderboard')
                 .select('name, score')
                 .order('score', { ascending: false })
-                .limit(10); // Increased to 10
+                .limit(10);
 
             if (error) throw error;
+            
             if (!data || data.length === 0) ui.lbList.innerHTML = '<li>No scores yet!</li>';
             else {
                 ui.lbList.innerHTML = data.map((e, i) => 
                     `<li><span>#${i+1} ${e.name.replace(/</g, "&lt;")}</span><span>${e.score}</span></li>`
                 ).join('');
             }
-        } catch(e) { console.error("LB Fetch Error:", e); ui.lbList.innerHTML = '<li>Error loading scores</li>'; }
+        } catch(e) { 
+            console.error("LB Fetch Error:", e); 
+            // Show the actual error on screen
+            ui.lbList.innerHTML = `<li style="color:red; font-size:0.8rem">Error: ${e.message}</li>`; 
+        }
     },
     save: async function(name, score) {
         if (!this.client) return;
-        try { await this.client.from('leaderboard').insert([{ name: name, score: score }]); } 
+        try { 
+            const { error } = await this.client.from('leaderboard').insert([{ name: name, score: score }]); 
+            if (error) {
+                console.error("Save failed:", error);
+                alert("Leaderboard Save Failed: " + error.message);
+            }
+        } 
         catch(e) { console.error("LB Save Error:", e); }
     }
 };
