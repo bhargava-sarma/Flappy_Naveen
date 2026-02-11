@@ -53,6 +53,28 @@ export default async function handler(req, res) {
       if (score > maxPossibleScore) {
           return res.status(400).json({ error: 'Score impossible for time elapsed' });
       }
+
+      // 3. Physics/Activity Check (The "Waiting" Fix)
+      // FIX: Only check relative timestamps (flaps vs flaps) to ignore Clock Skew
+      if (flapLog) {
+           // We only enforce deep checks on higher scores to allow casual play
+           if (score > 10 && !Array.isArray(flapLog)) {
+                return res.status(400).json({ error: 'Missing gameplay data' });
+           }
+
+           if (Array.isArray(flapLog) && flapLog.length > 0) {
+                const sortedLog = flapLog.sort((a,b) => a - b);
+                const MAX_FLIGHT_GAP = 5000; // 5 seconds (Very generous)
+
+                // Check Gravity
+                for (let i = 1; i < sortedLog.length; i++) {
+                     const gap = sortedLog[i] - sortedLog[i-1];
+                     if(gap > MAX_FLIGHT_GAP) {
+                         return res.status(400).json({ error: 'Game logic violation: Gravity' });
+                     }
+                }
+           }
+      }
   }
   // ---------------------------------
 

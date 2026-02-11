@@ -19,6 +19,7 @@ let score = 0;
 let highScore = parseInt(localStorage.getItem('highScore')) || 0;
 let playerName = localStorage.getItem('playerName') || '';
 let currentToken = null; // Store the game session token
+let flapLog = []; // Anti-Cheat: Track timestamps
 
 // 2. DOM ELEMENTS
 const getEl = (id) => document.getElementById(id);
@@ -70,6 +71,7 @@ const bird = {
     },
     flap: function() { 
         this.velocity = -GAME_CONFIG.jump; 
+        if (currentState === 'PLAYING') flapLog.push(Date.now()); 
     }
 };
 
@@ -181,13 +183,15 @@ const Leaderboard = {
         try { 
             // VERCEL API METHOD (Hides secret from browser)
             // Now includes 'token' for time-based validation
+            // AND 'log' for physics validation
             const response = await fetch('/api/submit-score', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     name: name, 
                     score: score,
-                    token: currentToken 
+                    token: currentToken,
+                    log: flapLog 
                 })
             });
 
@@ -259,6 +263,7 @@ function startGame() {
     
     // Secure Start: Get Token
     currentToken = null;
+    flapLog = []; // Reset log
     fetch('/api/start-game')
         .then(r => r.json())
         .then(data => { currentToken = data.token; })
