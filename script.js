@@ -287,6 +287,19 @@ function die() {
 
 function loop() {
     if (currentState === 'PLAYING') {
+        // --- DEV: AUTO-PILOT ---
+        if (window.autoPilot) {
+            const target = pipes.items.find(p => p.x + pipes.w > bird.x - bird.w);
+            if (target) {
+                // Aim for bottom half of gap (safer)
+                if (bird.y > target.y + target.gap - 40) bird.flap();
+            } else {
+                // No pipe? Just Float
+                if (bird.y > ui.canvas.height - 150) bird.flap();
+            }
+        }
+        // -----------------------
+
         ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
         bg.draw();
         pipes.update();
@@ -299,7 +312,10 @@ function loop() {
 }
 
 // 7. INPUTS
-window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp') && currentState === 'PLAYING') bird.flap(); });
+window.addEventListener('keydown', (e) => { 
+    if (e.key === '0') { window.autoPilot = !window.autoPilot; console.log("God Mode:", window.autoPilot); }
+    if ((e.code === 'Space' || e.code === 'ArrowUp') && currentState === 'PLAYING') bird.flap(); 
+});
 ui.canvas.addEventListener('click', () => { if (currentState === 'PLAYING') bird.flap(); });
 ui.canvas.addEventListener('touchstart', (e) => { if (currentState === 'PLAYING') { e.preventDefault(); bird.flap(); } }, {passive: false});
 
