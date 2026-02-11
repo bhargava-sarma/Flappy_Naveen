@@ -53,36 +53,6 @@ export default async function handler(req, res) {
       if (score > maxPossibleScore) {
           return res.status(400).json({ error: 'Score impossible for time elapsed' });
       }
-
-      // 3. Physics/Activity Check (The "Waiting" Fix)
-      if (!flapLog || !Array.isArray(flapLog)) {
-          return res.status(400).json({ error: 'Missing gameplay data' });
-      }
-
-      // Check A: Flap Count vs Score
-      // You can't pass a pipe without flapping at least once (usually)
-      if (flapLog.length < score * 0.5) {
-           return res.status(400).json({ error: 'Not enough inputs for this score' });
-      }
-
-      // Check B: The "Gravity" Check
-      // If a user waits > 3 seconds without flapping, they hit the ground.
-      // We check the gap between Start and First Flap, and between all Flaps.
-      let lastFlapTime = startTime;
-      const MAX_IDLE_SECONDS = 3.5; // Generous buffer (game over typically in <2s)
-
-      for (const time of flapLog) {
-          const gap = (time - lastFlapTime) / 1000;
-          if (gap > MAX_IDLE_SECONDS) {
-              return res.status(400).json({ error: 'Physics violation: Bird would have crashed' });
-          }
-          lastFlapTime = time;
-      }
-      
-      // Check gap between last flap and now (did they wait at the end?)
-      if ((now - lastFlapTime) / 1000 > MAX_IDLE_SECONDS) {
-          return res.status(400).json({ error: 'Physics violation: Idle at end' });
-      }
   }
   // ---------------------------------
 
