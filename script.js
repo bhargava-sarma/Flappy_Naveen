@@ -60,12 +60,6 @@ const bird = {
         ctx.rotate(this.rotation);
         if (assets.bird.loaded) ctx.drawImage(assets.bird.img, -this.w/2, -this.h/2, this.w, this.h);
         else { ctx.fillStyle = "yellow"; ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h); }
-        
-        // White Border
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-this.w/2, -this.h/2, this.w, this.h);
-        
         ctx.restore();
     },
     update: function() {
