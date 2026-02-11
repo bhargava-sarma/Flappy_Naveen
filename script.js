@@ -60,6 +60,12 @@ const bird = {
         ctx.rotate(this.rotation);
         if (assets.bird.loaded) ctx.drawImage(assets.bird.img, -this.w/2, -this.h/2, this.w, this.h);
         else { ctx.fillStyle = "yellow"; ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h); }
+        
+        // White Border
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-this.w/2, -this.h/2, this.w, this.h);
+        
         ctx.restore();
     },
     update: function() {
@@ -82,7 +88,10 @@ const pipes = {
             ctx.fillStyle = "#2ecc71";
             ctx.fillRect(p.x, 0, this.w, p.y);
             ctx.fillRect(p.x, p.y + p.gap, this.w, ui.canvas.height - (p.y + p.gap));
-            ctx.strokeStyle = "#27ae60"; ctx.lineWidth = 3;
+            
+            // White Border
+            ctx.strokeStyle = "white"; 
+            ctx.lineWidth = 2;
             ctx.strokeRect(p.x, 0, this.w, p.y);
             ctx.strokeRect(p.x, p.y + p.gap, this.w, ui.canvas.height - (p.y + p.gap));
         }
@@ -118,6 +127,10 @@ const bg = {
         let scaledW = assets.bg.img.width * ratio;
         let tiles = Math.ceil(ui.canvas.width / scaledW) + 1;
         for(let i=0; i<tiles; i++) ctx.drawImage(assets.bg.img, i*scaledW, 0, scaledW, ui.canvas.height);
+        
+        // Darken (50% brightness reduction equivalent)
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height);
     }
 };
 
@@ -175,6 +188,23 @@ const Leaderboard = {
             console.error("LB Fetch Error:", e); 
             // Show the actual error on screen
             ui.lbList.innerHTML = `<li style="color:red; font-size:0.8rem">Error: ${e.message}</li>`; 
+        }
+    },
+    getPersonalBest: async function(name) {
+        if (!this.client || !name) return 0;
+        try {
+            const { data, error } = await this.client
+                .from('leaderboard')
+                .select('score')
+                .eq('name', name)
+                .order('score', { ascending: false })
+                .limit(1);
+            
+            if (error) throw error;
+            return (data && data.length > 0) ? data[0].score : 0;
+        } catch(e) {
+            console.error("Personal Best Fetch Error:", e);
+            return 0;
         }
     },
     save: async function(name, score) {
@@ -249,6 +279,17 @@ function startGame() {
     playerName = name;
     localStorage.setItem('playerName', name);
     
+    // Fetch Personal Best from DB
+    Leaderboard.getPersonalBest(playerName).then(dbScore => {
+         // use the higher of local or DB, so we don't lose offline progress
+         const best = Math.max(dbScore, parseInt(localStorage.getItem('highScore')) || 0);
+         if (best > highScore) {
+             highScore = best;
+             localStorage.setItem('highScore', best);
+         }
+         ui.highScore.innerText = "Best: " + highScore;
+    });
+
     ui.startScreen.classList.add('hidden');
     ui.gameOverScreen.classList.add('hidden');
     ui.hud.classList.remove('hidden');
