@@ -18,6 +18,7 @@ let frames = 0;
 let score = 0;
 let highScore = parseInt(localStorage.getItem('highScore')) || 0;
 let playerName = localStorage.getItem('playerName') || '';
+let currentToken = null; // Store the game session token
 
 // 2. DOM ELEMENTS
 const getEl = (id) => document.getElementById(id);
@@ -177,10 +178,15 @@ const Leaderboard = {
         
         try { 
             // VERCEL API METHOD (Hides secret from browser)
+            // Now includes 'token' for time-based validation
             const response = await fetch('/api/submit-score', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name, score: score })
+                body: JSON.stringify({ 
+                    name: name, 
+                    score: score,
+                    token: currentToken 
+                })
             });
 
             const result = await response.json();
@@ -248,6 +254,14 @@ function startGame() {
     
     currentState = 'PLAYING';
     if(ui.bgMusic) { ui.bgMusic.currentTime = 0; ui.bgMusic.play().catch(e => console.log("Audio ignored:", e)); }
+    
+    // Secure Start: Get Token
+    currentToken = null;
+    fetch('/api/start-game')
+        .then(r => r.json())
+        .then(data => { currentToken = data.token; })
+        .catch(e => console.error("Token fetch failed:", e));
+
     loop();
 }
 
