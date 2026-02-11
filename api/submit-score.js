@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name, score, token } = req.body;
+  const { name, score, token, flapLog } = req.body;
 
   // Basic validation
   if (!name || typeof score !== 'number') {
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server misconfiguration' });
   }
 
-  // --- SECURITY: TIME VALIDATION ---
+  // --- SECURITY: TIME + PHYSICS VALIDATION ---
   if (!token) {
       return res.status(403).json({ error: 'Missing security token' });
   }
@@ -42,24 +42,46 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Token forgery detected' });
   }
 
-  // 2. Verify Impossible Scores
-  // Calculate how long the game session lasted
+  // 2. Verify Time Limits
   const startTime = parseInt(timestampStr, 10);
   const now = Date.now();
   const durationSeconds = (now - startTime) / 1000;
   
-  // Flappy Bird speed logic:
-  // Roughly 1 pipe every ~1.5 to 2 seconds at max speed.
-  // We allow a generous buffer (e.g., 1 point every 1.2 seconds) to account for lag.
-  // If someone scores 100 in 5 seconds, they are hacking.
-  // Exception: Score <= 5 is trivial, skip check to avoid false positives on quick deaths
   if (score > 5) {
-      const minSecondsPerPoint = 1.2; 
-      const maxPossibleScore = Math.ceil(durationSeconds / minSecondsPerPoint) + 2; // +2 buffer
-      
+      // Time check
+      const maxPossibleScore = Math.ceil(durationSeconds / 1.2) + 2;
       if (score > maxPossibleScore) {
-          console.warn(`Cheat Attempt: Score ${score} in ${durationSeconds}s`);
           return res.status(400).json({ error: 'Score impossible for time elapsed' });
+      }
+
+      // 3. Physics/Activity Check (The "Waiting" Fix)
+      if (!flapLog || !Array.isArray(flapLog)) {
+          return res.status(400).json({ error: 'Missing gameplay data' });
+      }
+
+      // Check A: Flap Count vs Score
+      // You can't pass a pipe without flapping at least once (usually)
+      if (flapLog.length < score * 0.5) {
+           return res.status(400).json({ error: 'Not enough inputs for this score' });
+      }
+
+      // Check B: The "Gravity" Check
+      // If a user waits > 3 seconds without flapping, they hit the ground.
+      // We check the gap between Start and First Flap, and between all Flaps.
+      let lastFlapTime = startTime;
+      const MAX_IDLE_SECONDS = 3.5; // Generous buffer (game over typically in <2s)
+
+      for (const time of flapLog) {
+          const gap = (time - lastFlapTime) / 1000;
+          if (gap > MAX_IDLE_SECONDS) {
+              return res.status(400).json({ error: 'Physics violation: Bird would have crashed' });
+          }
+          lastFlapTime = time;
+      }
+      
+      // Check gap between last flap and now (did they wait at the end?)
+      if ((now - lastFlapTime) / 1000 > MAX_IDLE_SECONDS) {
+          return res.status(400).json({ error: 'Physics violation: Idle at end' });
       }
   }
   // ---------------------------------
