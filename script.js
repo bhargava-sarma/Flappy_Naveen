@@ -335,13 +335,25 @@ function startGame() {
 
     // Fetch Personal Best from DB
     Leaderboard.getPersonalBest(playerName).then(dbScore => {
-         // use the higher of local or DB, so we don't lose offline progress
-         const localBest = parseInt(localStorage.getItem('highScore')) || 0;
-         const best = Math.max(dbScore, localBest);
+         // Use the DB score as the source of truth for "Best"
+         // Only fallback to local if it's the SAME player and local is higher (offline progress)
+         // But since we can't easily track which player owns the local 'highScore', 
+         // we should prioritize the DB score when switching names.
          
-         // Fix: Always update global variable AND UI, even if local storage was already high
-         highScore = best;
-         localStorage.setItem('highScore', best);
+         // FIX: Trust DB score for the named player. 
+         // If we want to support offline, we'd need to store scores by name in localStorage (e.g. 'score_Naveen')
+         // For now, let's prioritize the DB fetch for the specific name entered.
+         
+         highScore = dbScore;
+         
+         // Optional: check if we have a locally stored better score for THIS specific name
+         const localKey = 'highScore_' + playerName;
+         const localSpecific = parseInt(localStorage.getItem(localKey)) || 0;
+         if (localSpecific > highScore) highScore = localSpecific;
+
+         // Update Global High Score logic to be per-player
+         localStorage.setItem(localKey, highScore);
+         
          ui.highScore.innerText = "Best: " + highScore;
     });
 
@@ -371,7 +383,11 @@ function startGame() {
 function die() {
     if (currentState === 'GAMEOVER') return;
     currentState = 'GAMEOVER';
-    if (score > highScore) { highScore = score; localStorage.setItem('highScore', highScore); }
+    if (score > highScore) { 
+        highScore = score; 
+        // Save score specifically for this player
+        localStorage.setItem('highScore_' + playerName, highScore); 
+    }
     Leaderboard.save(playerName, score);
     
     ui.hud.classList.add('hidden');
