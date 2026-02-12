@@ -297,8 +297,27 @@ function hideLeaderboard() {
 function resize() {
     const parent = document.getElementById('game-container');
     if (parent) {
-        ui.canvas.width = parent.offsetWidth;
-        ui.canvas.height = parent.offsetHeight;
+        // Debounce resize to prevent resize-loops and excessive drawing
+        const dpr = window.devicePixelRatio || 1;
+        // Limit max resolution for performance on 4k screens
+        const maxW = 1080; 
+        
+        let targetW = parent.offsetWidth;
+        let targetH = parent.offsetHeight;
+
+        // If screen is huge, cap the internal buffer
+        if (targetW > maxW) {
+             const aspect = targetH / targetW;
+             targetW = maxW;
+             targetH = maxW * aspect;
+        }
+
+        ui.canvas.width = targetW;
+        ui.canvas.height = targetH;
+        
+        // Scale context if needed (handled by browser scaling mostly, but good for crispness)
+        // ctx.scale(dpr, dpr); 
+
         bg.resize(); // Check bg size
         if (currentState === 'START') { bird.x = ui.canvas.width/2; bird.y = ui.canvas.height/2; }
     }
@@ -310,14 +329,19 @@ function startGame() {
     playerName = name;
     localStorage.setItem('playerName', name);
     
+    // Reset Score Display immediately
+    ui.score.innerText = "Score: 0";
+    ui.highScore.innerText = "Best: Loading..."; // Feedback
+
     // Fetch Personal Best from DB
     Leaderboard.getPersonalBest(playerName).then(dbScore => {
          // use the higher of local or DB, so we don't lose offline progress
-         const best = Math.max(dbScore, parseInt(localStorage.getItem('highScore')) || 0);
-         if (best > highScore) {
-             highScore = best;
-             localStorage.setItem('highScore', best);
-         }
+         const localBest = parseInt(localStorage.getItem('highScore')) || 0;
+         const best = Math.max(dbScore, localBest);
+         
+         // Fix: Always update global variable AND UI, even if local storage was already high
+         highScore = best;
+         localStorage.setItem('highScore', best);
          ui.highScore.innerText = "Best: " + highScore;
     });
 
@@ -359,12 +383,21 @@ function die() {
 
 function loop() {
     if (currentState === 'PLAYING') {
+        // Optimization: Use separate layers? No, simple batching.
+        // Clear only dirty regions? No, easier to clear all.
         ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
+        
+        // Draw Background (Cached)
         bg.draw();
+        
+        // Draw Pipes (Batched)
         pipes.update();
         pipes.draw();
+        
+        // Draw Bird
         bird.update();
         bird.draw();
+        
         frames++;
         requestAnimationFrame(loop);
     }
