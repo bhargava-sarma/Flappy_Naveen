@@ -78,14 +78,15 @@ const bird = {
 const pipes = {
     items: [], w: 52, dx: 1.6, nextSpawn: 0,
     draw: function() {
+        // Optimization: Batch state changes outside the loop
+        ctx.fillStyle = "#2ecc71";
+        ctx.strokeStyle = "white"; 
+        ctx.lineWidth = 2;
+
         for (let p of this.items) {
-            ctx.fillStyle = "#2ecc71";
             ctx.fillRect(p.x, 0, this.w, p.y);
             ctx.fillRect(p.x, p.y + p.gap, this.w, ui.canvas.height - (p.y + p.gap));
             
-            // White Border
-            ctx.strokeStyle = "white"; 
-            ctx.lineWidth = 2;
             ctx.strokeRect(p.x, 0, this.w, p.y);
             ctx.strokeRect(p.x, p.y + p.gap, this.w, ui.canvas.height - (p.y + p.gap));
         }
@@ -115,16 +116,51 @@ const pipes = {
 };
 
 const bg = {
-    draw: function() {
-        if (!assets.bg.loaded) { ctx.fillStyle = "#70c5ce"; ctx.fillRect(0,0,ui.canvas.width, ui.canvas.height); return; }
-        let ratio = ui.canvas.height / assets.bg.img.height;
-        let scaledW = assets.bg.img.width * ratio;
-        let tiles = Math.ceil(ui.canvas.width / scaledW) + 1;
-        for(let i=0; i<tiles; i++) ctx.drawImage(assets.bg.img, i*scaledW, 0, scaledW, ui.canvas.height);
+    // Optimization: Cache the background to avoid expenisve re-draws every frame
+    cache: document.createElement('canvas'),
+    ctx: null,
+    needsUpdate: true,
+    
+    init: function() {
+        this.ctx = this.cache.getContext('2d');
+    },
+
+    resize: function() {
+        this.cache.width = ui.canvas.width;
+        this.cache.height = ui.canvas.height;
+        this.needsUpdate = true;
+    },
+
+    updateCache: function() {
+        if (!assets.bg.loaded) return;
         
-        // Darken (50% brightness reduction equivalent)
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height);
+        // Draw matched tiles to the cache
+        let ratio = this.cache.height / assets.bg.img.height;
+        let scaledW = assets.bg.img.width * ratio;
+        let tiles = Math.ceil(this.cache.width / scaledW) + 1;
+        
+        for(let i=0; i<tiles; i++) {
+            this.ctx.drawImage(assets.bg.img, i*scaledW, 0, scaledW, this.cache.height);
+        }
+        
+        // Bake the dark overlay into the cache
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        this.ctx.fillRect(0, 0, this.cache.width, this.cache.height);
+        
+        this.needsUpdate = false;
+    },
+
+    draw: function() {
+        if (!assets.bg.loaded) { 
+            ctx.fillStyle = "#2c3e50"; // Faster fallback
+            ctx.fillRect(0,0,ui.canvas.width, ui.canvas.height); 
+            return; 
+        }
+        
+        if (this.needsUpdate) this.updateCache();
+        
+        // Single draw call per frame instead of multiple images + transparency
+        ctx.drawImage(this.cache, 0, 0);
     }
 };
 
@@ -263,6 +299,7 @@ function resize() {
     if (parent) {
         ui.canvas.width = parent.offsetWidth;
         ui.canvas.height = parent.offsetHeight;
+        bg.resize(); // Check bg size
         if (currentState === 'START') { bird.x = ui.canvas.width/2; bird.y = ui.canvas.height/2; }
     }
 }
@@ -340,6 +377,7 @@ ui.canvas.addEventListener('touchstart', (e) => { if (currentState === 'PLAYING'
 
 // 8. INIT
 window.onload = function() {
+    bg.init(); // Init buffer
     resize();
     window.addEventListener('resize', resize);
     
