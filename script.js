@@ -53,7 +53,7 @@ const ctx = ui.canvas.getContext('2d');
 
 // 3. OBJECTS
 const bird = {
-    x: 100, y: 150, w: 80, h: 80, velocity: 0, rotation: 0,
+    x: 100, y: 150, w: 64, h: 64, velocity: 0, rotation: 0,
     draw: function() {
         ctx.save();
         ctx.translate(this.x, this.y);
@@ -76,7 +76,7 @@ const bird = {
 };
 
 const pipes = {
-    items: [], w: 52, dx: 1.6, nextSpawn: 0,
+    items: [], w: 42, dx: 1.6, nextSpawn: 0,
     draw: function() {
         // Optimization: Batch state changes outside the loop
         ctx.fillStyle = "#2ecc71";
@@ -93,9 +93,10 @@ const pipes = {
     },
     update: function() {
         if (frames >= this.nextSpawn) {
-            const minSpace = 250, maxSpace = 300;
+            // Scaled down spacing and gaps by ~20%
+            const minSpace = 200, maxSpace = 240;
             this.nextSpawn = frames + Math.floor(Math.random() * (maxSpace - minSpace + 1)) + minSpace;
-            const minGap = 240, maxGap = 400;
+            const minGap = 190, maxGap = 320;
             const gap = Math.floor(Math.random() * (maxGap - minGap + 1)) + minGap;
             const minTop = 50;
             const maxTop = Math.max(minTop, ui.canvas.height - gap - 50);
